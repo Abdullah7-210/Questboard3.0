@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080a0d">
+  <meta name="description" content="A dark developer-style quest dashboard with tasks, XP, levels, and progress tracking.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <title>Questboard // Daily Ops</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07090c;
+      --panel: #0d1116;
+      --panel-2: #11171d;
+      --panel-3: #151c22;
+      --line: #263039;
+      --line-bright: #35434b;
+      --text: #eef4f5;
+      --muted: #89979e;
+      --muted-2: #617079;
+      --lime: #c9ff52;
+      --lime-soft: #c9ff5217;
+      --cyan: #6ee7df;
+      --amber: #ffd166;
+      --red: #ff7185;
+      --radius: 20px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text); font: 14px/1.5 var(--sans);
+      background:
+        radial-gradient(ellipse at 9% -6%, #c9ff520b, transparent 31rem),
+        radial-gradient(ellipse at 92% 14%, #6ee7df09, transparent 28rem),
+        linear-gradient(#ffffff03 1px, transparent 1px),
+        linear-gradient(90deg, #ffffff03 1px, transparent 1px), var(--bg);
+      background-size: auto, auto, 36px 36px, 36px 36px, auto;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+    .app-shell { width: min(1500px, 100%); margin: 0 auto; padding: 0 34px 44px; }
+    .topbar {
+      min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 18px;
+      border-bottom: 1px solid #ffffff0c; margin-bottom: 28px;
+    }
+    .brand-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-icon {
+      width: 43px; height: 43px; display: grid; place-items: center; border-radius: 13px;
+      background: var(--lime); color: #11170a; font: 900 19px/1 var(--mono);
+      box-shadow: 0 0 28px #c9ff5218;
+    }
+    .brand-name { font-size: 16px; font-weight: 850; letter-spacing: -.04em; }
+    .brand-sub { color: var(--muted-2); font: 10px/1.5 var(--mono); letter-spacing: .14em; text-transform: uppercase; margin-top: 2px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .system-status, .date-chip, .micro-label {
+      display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font: 10px/1.2 var(--mono);
+      text-transform: uppercase; letter-spacing: .1em; white-space: nowrap;
+    }
+    .live-dot { width: 7px; height: 7px; background: var(--lime); border-radius: 50%; box-shadow: 0 0 12px #c9ff5280; }
+    .top-btn, .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px;
+      color: #c2cdd1; border: 1px solid var(--line); border-radius: 10px; background: #ffffff04; font-size: 12px; font-weight: 650;
+      transition: border-color .18s, background .18s, transform .18s;
+    }
+    .top-btn:hover, .icon-btn:hover { border-color: var(--line-bright); background: #ffffff09; }
+    .top-btn:active, .icon-btn:active { transform: scale(.97); }
+    .icon-btn { width: 38px; padding: 0; font: 700 14px var(--mono); }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 22px; align-items: start; }
+    .main-column, .sidebar { display: grid; gap: 18px; min-width: 0; }
+    .sidebar { position: sticky; top: 18px; }
+    .hero {
+      min-height: 252px; display: flex; align-items: center; justify-content: space-between; gap: 26px;
+      position: relative; overflow: hidden; padding: 30px 32px; border: 1px solid #c9ff5228; border-radius: 23px;
+      background: linear-gradient(115deg, #111812 0%, #0d1215 55%, #10191b 100%);
+      box-shadow: inset 0 1px #ffffff05, 0 20px 60px #0005;
+    }
+    .hero::before { content: ""; position: absolute; width: 320px; height: 320px; border-radius: 50%; right: -100px; top: -170px; border: 1px solid #c9ff5218; box-shadow: 0 0 0 30px #c9ff5205, 0 0 0 60px #c9ff5204; pointer-events: none; }
+    .hero-copy { position: relative; z-index: 1; max-width: 600px; }
+    .eyebrow { color: var(--lime); font: 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .19em; }
+    h1 { margin: 13px 0 10px; font-size: clamp(32px, 3.7vw, 52px); line-height: 1.02; letter-spacing: -.065em; font-weight: 850; }
+    h1 span { color: var(--lime); }
+    .hero-copy p { max-width: 480px; color: #9ca9ad; margin: 0; line-height: 1.7; font-size: 13px; }
+    .hero-bottom { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 22px; }
+    .hero-chip { padding: 7px 10px; border-radius: 7px; border: 1px solid #ffffff10; color: #adb9bd; background: #ffffff04; font: 10px var(--mono); }
+    .hero-chip b { color: var(--lime); font-weight: 700; }
+    .hero-orb { position: relative; z-index: 1; flex: 0 0 auto; width: 126px; height: 126px; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(var(--lime) var(--progress, 0%), #ffffff0b 0); transition: background .5s ease, transform .35s ease; }
+    .hero-orb::before { content: ""; position: absolute; inset: 7px; border-radius: inherit; background: #0c1112; border: 1px solid #ffffff0b; }
+    .hero-orb.pulse { animation: orbPulse .55s ease; }
+    .orb-inner { position: relative; text-align: center; z-index: 1; }
+    .orb-percent { display: block; font: 800 29px/1 var(--mono); letter-spacing: -.08em; }
+    .orb-caption { color: var(--muted); font: 9px var(--mono); text-transform: uppercase; letter-spacing: .13em; display: block; margin-top: 7px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .stat-card, .panel { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg, #10151a, #0b0f13); box-shadow: 0 16px 40px #0002; }
+    .stat-card { padding: 17px 18px 16px; position: relative; overflow: hidden; }
+    .stat-card::after { content: ""; position: absolute; top: 0; left: 18px; right: 18px; height: 1px; background: linear-gradient(90deg, #c9ff524d, transparent); }
+    .stat-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+    .stat-symbol { color: var(--lime); font: 13px var(--mono); }
+    .stat-value { margin-top: 10px; font: 750 clamp(22px, 2vw, 28px)/1 var(--mono); letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
+    .stat-foot { margin-top: 8px; color: var(--muted-2); font: 10px var(--mono); }
+    .panel { overflow: hidden; }
+    .panel-head { padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #ffffff0a; }
+    .panel-title { margin: 0; font-size: 16px; font-weight: 780; letter-spacing: -.025em; }
+    .panel-sub { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .subtle-pill { border: 1px solid var(--line); padding: 6px 9px; border-radius: 7px; color: var(--muted); font: 10px var(--mono); white-space: nowrap; }
+    .quest-body { padding: 18px 20px 10px; }
+    .add-form { display: grid; grid-template-columns: minmax(0, 1fr) 105px; gap: 9px; }
+    .task-input { width: 100%; min-width: 0; color: var(--text); border: 1px solid #2a353c; border-radius: 11px; background: #080c0f; padding: 13px 14px; outline: 0; transition: border-color .2s, box-shadow .2s; }
+    .task-input::placeholder { color: #5f6c72; }
+    .task-input:focus { border-color: #99c93e; box-shadow: 0 0 0 3px #c9ff5210; }
+    .add-btn { border: 1px solid #d5ff75; border-radius: 11px; padding: 0 15px; background: var(--lime); color: #101508; font-weight: 850; font-size: 12px; transition: transform .16s, filter .16s; }
+    .add-btn:hover { filter: brightness(1.05); }
+    .add-btn:active { transform: scale(.97); }
+    .form-row { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .type-select { max-width: 100%; color: #b3c0c4; border: 1px solid #273238; border-radius: 8px; padding: 7px 9px; background: #0a0e11; font: 10px var(--mono); }
+    .form-hint { color: var(--muted-2); font: 10px var(--mono); text-align: right; }
+    .filters { display: flex; align-items: center; gap: 5px; padding: 12px 20px 0; }
+    .filter-btn { border: 1px solid transparent; border-radius: 8px; padding: 7px 11px; color: var(--muted); background: transparent; font-size: 11px; transition: color .15s, background .15s, border-color .15s; }
+    .filter-btn:hover { color: var(--text); }
+    .filter-btn.active { color: var(--lime); border-color: #c9ff5224; background: #c9ff520a; }
+    .quest-count { margin-left: auto; font: 10px var(--mono); color: var(--muted); }
+    .task-list { display: grid; gap: 9px; padding: 13px 20px 20px; }
+    .task {
+      display: grid; grid-template-columns: 25px minmax(0, 1fr) auto; align-items: center; gap: 13px; min-width: 0;
+      padding: 14px 14px; border: 1px solid #222c32; border-radius: 13px; background: #ffffff02;
+      transition: transform .24s cubic-bezier(.2,.8,.2,1), background .24s, border-color .24s, box-shadow .24s, opacity .24s;
+      animation: taskEnter .28s ease both;
+    }
+    .task:hover { transform: translateY(-1px); border-color: #3a484e; background: #ffffff04; }
+    .task.completing { border-color: #c9ff5290; background: #c9ff520c; box-shadow: 0 0 0 3px #c9ff520b, 0 0 32px #c9ff520d; transform: scale(1.008); }
+    .task.done { background: #c9ff5206; border-color: #c9ff5224; }
+    .task.done .task-title { color: #879590; text-decoration: line-through; text-decoration-color: #c9ff5280; }
+    .task.done .check-box { border-color: var(--lime); background: var(--lime); color: #0c1206; }
+    .check-box { appearance: none; width: 23px; height: 23px; margin: 0; border-radius: 8px; border: 1.5px solid #49575e; background: #0a0e11; color: transparent; display: grid; place-items: center; cursor: pointer; transition: background .2s, border-color .2s, transform .2s, box-shadow .2s; }
+    .check-box::after { content: "✓"; font: 900 15px/1 var(--sans); transform: scale(0) rotate(-30deg); transition: transform .2s cubic-bezier(.2,.8,.2,1); }
+    .check-box:checked { transform: scale(1.06); }
+    .check-box:checked::after { transform: scale(1) rotate(0); }
+    .task.completing .check-box { box-shadow: 0 0 0 5px #c9ff5210, 0 0 20px #c9ff5230; animation: checkPop .42s ease; }
+    .task-main { min-width: 0; }
+    .task-title { color: #e2e9e9; font-size: 13px; font-weight: 670; line-height: 1.4; overflow-wrap: anywhere; transition: color .2s; }
+    .task-meta { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .tag { border-radius: 5px; padding: 3px 6px; background: #ffffff07; color: #87969c; font: 9px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+    .tag.daily { color: var(--cyan); background: #6ee7df0c; border: 1px solid #6ee7df15; }
+    .tag.once { color: var(--amber); background: #ffd1660d; border: 1px solid #ffd16614; }
+    .task-side { min-width: 70px; display: grid; justify-items: end; gap: 8px; }
+    .xp-tag { color: var(--lime); font: 10px var(--mono); white-space: nowrap; }
+    .xp-tag.earned { color: #75847b; }
+    .remove-btn { border: 0; padding: 2px 0; background: transparent; color: #66747a; font: 10px var(--mono); transition: color .15s; }
+    .remove-btn:hover { color: var(--red); }
+    .empty-state { padding: 34px 16px 38px; text-align: center; border: 1px dashed #263238; border-radius: 13px; color: var(--muted); }
+    .empty-glyph { color: var(--lime); font: 26px var(--mono); margin-bottom: 9px; }
+    .empty-state strong { display: block; color: #c7d1d4; font-size: 13px; margin-bottom: 4px; }
+    .empty-state p { margin: 0; font-size: 11px; }
+    .quest-footer { min-height: 54px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid #ffffff0a; }
+    .footer-caption { color: var(--muted-2); font: 10px var(--mono); }
+    .text-btn { background: transparent; border: 1px solid transparent; color: #748288; border-radius: 8px; padding: 7px 8px; font-size: 10px; transition: color .15s, border-color .15s; }
+    .text-btn:hover:not(:disabled) { color: #d1dcdf; border-color: var(--line); }
+    .text-btn:disabled { opacity: .35; cursor: default; }
+    .level-panel { padding: 20px; background: radial-gradient(ellipse at 100% 0%, #c9ff520c, transparent 50%), linear-gradient(145deg,#101710,#0c1113 75%); }
+    .side-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .side-heading h2 { margin: 0; font-size: 13px; }
+    .side-kicker { color: var(--muted-2); font: 9px var(--mono); text-transform: uppercase; letter-spacing: .13em; }
+    .level-main { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+    .level-number { flex: 0 0 auto; width: 62px; height: 62px; display: grid; place-items: center; border: 1px solid #c9ff5242; border-radius: 16px; background: #c9ff520d; color: var(--lime); font: 800 28px var(--mono); box-shadow: inset 0 1px #ffffff08; }
+    .level-name { font-size: 16px; font-weight: 800; letter-spacing: -.03em; }
+    .level-xp-line { color: var(--muted); margin-top: 4px; font: 10px var(--mono); }
+    .xp-track { height: 7px; background: #ffffff0b; border-radius: 99px; overflow: hidden; margin-top: 17px; }
+    .xp-fill { width: 0%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--lime), var(--cyan)); transition: width .55s cubic-bezier(.2,.8,.2,1); }
+    .level-bottom { margin-top: 12px; display: flex; justify-content: space-between; gap: 10px; color: var(--muted-2); font: 9px var(--mono); }
+    .level-panel.level-up { animation: levelUp .85s ease; }
+    .weekly-panel { padding: 20px; }
+    .week-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 9px; align-items: end; margin-top: 19px; }
+    .day-col { min-width: 0; display: grid; gap: 8px; justify-items: center; }
+    .day-val { font: 9px var(--mono); color: var(--muted-2); }
+    .bar-track { width: 100%; height: 78px; display: flex; align-items: end; overflow: hidden; border-radius: 6px; background: #ffffff05; border: 1px solid #ffffff06; }
+    .bar-fill { width: 100%; height: 3%; min-height: 3px; background: #52625c; border-radius: 5px 5px 2px 2px; transition: height .55s cubic-bezier(.2,.8,.2,1), background .25s; }
+    .day-col.today .bar-fill { background: linear-gradient(180deg, var(--lime), #739e2c); box-shadow: 0 0 14px #c9ff5215; }
+    .day-col.has-data:not(.today) .bar-fill { background: linear-gradient(180deg, #6ee7df, #2d8e8b); }
+    .day-name { color: #748188; font: 9px var(--mono); text-transform: uppercase; }
+    .day-col.today .day-name { color: var(--lime); }
+    .focus-panel { padding: 20px; }
+    .focus-quote { color: #d4dddf; font-size: 13px; line-height: 1.7; margin: 14px 0 0; }
+    .focus-quote strong { color: var(--lime); font-weight: 700; }
+    .shortcuts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 15px; }
+    kbd { padding: 4px 6px; color: #9eacb2; background: #ffffff06; border: 1px solid #2a353c; border-bottom-width: 2px; border-radius: 5px; font: 9px var(--mono); }
+    .side-foot { color: #4d5b61; font: 9px/1.7 var(--mono); text-align: center; }
+    .toast {
+      position: fixed; z-index: 80; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); width: max-content; max-width: calc(100vw - 28px);
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 13px; border: 1px solid #c9ff5240;
+      background: #101710f5; box-shadow: 0 18px 60px #0009, 0 0 30px #c9ff520d; transform: translate(-50%, 18px) scale(.97); opacity: 0; pointer-events: none;
+      transition: opacity .24s ease, transform .3s cubic-bezier(.2,.8,.2,1); backdrop-filter: blur(14px);
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    .toast-icon { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 9px; display: grid; place-items: center; color: #11170a; background: var(--lime); font-weight: 900; }
+    .toast-title { display: block; color: var(--lime); font-size: 12px; font-weight: 800; }
+    .toast-message { display: block; color: #b7c2c3; font-size: 11px; margin-top: 2px; }
+    .xp-float { z-index: 90; position: fixed; color: var(--lime); font: 900 14px var(--mono); text-shadow: 0 0 17px #c9ff5280; pointer-events: none; animation: floatUp .95s cubic-bezier(.2,.8,.2,1) forwards; }
+    .confetti { position: fixed; z-index: 85; width: 6px; height: 6px; border-radius: 2px; left: var(--x); top: var(--y); background: var(--c); pointer-events: none; animation: confettiBurst .8s ease-out forwards; }
+    .storage-warning { display: none; padding: 10px 12px; border: 1px solid #ffd16640; background: #ffd1660b; border-radius: 10px; color: #e6cb8a; font-size: 11px; margin-bottom: 16px; }
+    .storage-warning.show { display: block; }
+    .modal-backdrop { position: fixed; z-index: 100; inset: 0; padding: 18px; display: none; align-items: center; justify-content: center; background: #000c; backdrop-filter: blur(12px); }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(460px, 100%); padding: 24px; background: #10161a; border: 1px solid var(--line-bright); border-radius: 18px; box-shadow: 0 30px 100px #0009; }
+    .modal h2 { margin: 0 0 10px; font-size: 18px; }
+    .modal p, .modal li { color: #a9b5b8; font-size: 12px; line-height: 1.7; }
+    .modal ul { padding-left: 18px; }
+    .modal-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+    @keyframes taskEnter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes checkPop { 0% { transform: scale(.8); } 48% { transform: scale(1.18); } 100% { transform: scale(1.06); } }
+    @keyframes orbPulse { 0% { transform: scale(1); } 40% { transform: scale(1.055); } 100% { transform: scale(1); } }
+    @keyframes floatUp { 0% { opacity: 0; transform: translate(-10%, 5px) scale(.85); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-10%, -66px) scale(1.12); } }
+    @keyframes confettiBurst { 0% { opacity: 0; transform: translate(0,0) scale(.4) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.25) rotate(220deg); } }
+    @keyframes levelUp { 0%,100% { border-color: var(--line); } 25%,65% { border-color: var(--lime); box-shadow: 0 0 0 4px #c9ff520d, 0 0 45px #c9ff5219; } }
+    @media (min-width: 1500px) { .workspace { grid-template-columns: minmax(0, 1fr) 370px; gap: 26px; } .main-column, .sidebar { gap: 20px; } .hero { padding: 36px 38px; } }
+    @media (max-width: 1120px) { .app-shell { padding-inline: 22px; } .workspace { grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; } .hero { padding: 25px; } .hero-orb { width: 108px; height: 108px; } .orb-percent { font-size: 25px; } .stat-card { padding: 15px; } }
+    @media (max-width: 860px) { .app-shell { padding-inline: 18px; } .workspace { grid-template-columns: minmax(0, 1fr); } .sidebar { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } .level-panel { grid-column: 1 / -1; } .hero { min-height: auto; } .side-foot { grid-column: 1 / -1; } }
+    @media (max-width: 600px) {
+      body { background-size: auto, auto, 27px 27px, 27px 27px, auto; }
+      .app-shell { padding: 0 12px calc(22px + env(safe-area-inset-bottom)); }
+      .topbar { min-height: 66px; margin-bottom: 14px; gap: 8px; }
+      .brand-wrap { gap: 9px; } .brand-icon { width: 37px; height: 37px; border-radius: 11px; font-size: 16px; }
+      .brand-name { font-size: 14px; } .brand-sub { font-size: 8px; letter-spacing: .1em; }
+      .system-status { display: none; } .topbar-right { gap: 6px; } .top-btn { min-height: 35px; padding: 0 9px; font-size: 10px; } .top-btn .btn-text { display: none; } .icon-btn { width: 35px; min-height: 35px; }
+      .workspace, .main-column, .sidebar { gap: 12px; }
+      .hero { padding: 22px 18px; border-radius: 18px; gap: 10px; }
+      h1 { font-size: clamp(29px, 8vw, 38px); margin: 10px 0 8px; }
+      .hero-copy p { max-width: 350px; font-size: 11px; line-height: 1.6; }
+      .hero-bottom { gap: 5px; margin-top: 16px; } .hero-chip { padding: 6px 7px; font-size: 8px; }
+      .hero-orb { width: 76px; height: 76px; } .hero-orb::before { inset: 5px; } .orb-percent { font-size: 20px; } .orb-caption { font-size: 7px; margin-top: 4px; }
+      .stats-grid { gap: 7px; } .stat-card { padding: 12px 10px; border-radius: 13px; } .stat-top { font-size: 9px; gap: 4px; } .stat-symbol { font-size: 11px; } .stat-value { font-size: clamp(17px, 5vw, 22px); margin-top: 9px; } .stat-foot { font-size: 8px; line-height: 1.4; margin-top: 6px; }
+      .panel { border-radius: 16px; } .panel-head { padding: 16px 14px; gap: 8px; } .panel-title { font-size: 14px; } .panel-sub { font-size: 10px; } .subtle-pill { font-size: 8px; padding: 5px 7px; }
+      .quest-body { padding: 13px 12px 8px; } .add-form { grid-template-columns: minmax(0, 1fr) 74px; gap: 7px; } .task-input { padding: 12px 10px; font-size: 12px; } .add-btn { padding: 0 8px; font-size: 11px; }
+      .form-row { align-items: flex-start; flex-direction: column; gap: 7px; } .type-select { width: 100%; font-size: 9px; } .form-hint { text-align: left; font-size: 9px; }
+      .filters { padding: 10px 12px 0; gap: 3px; } .filter-btn { padding: 7px 9px; font-size: 10px; } .quest-count { font-size: 9px; }
+      .task-list { padding: 11px 12px 15px; gap: 8px; } .task { grid-template-columns: 22px minmax(0,1fr) auto; gap: 9px; padding: 12px 9px; border-radius: 12px; }
+      .check-box { width: 21px; height: 21px; border-radius: 7px; } .task-title { font-size: 12px; } .task-side { min-width: 59px; gap: 7px; } .xp-tag { font-size: 9px; } .remove-btn { font-size: 9px; }
+      .quest-footer { padding: 11px 12px; align-items: flex-start; } .footer-caption { font-size: 8px; line-height: 1.7; } .text-btn { font-size: 9px; padding: 6px 4px; }
+      .sidebar { grid-template-columns: minmax(0, 1fr); } .level-panel, .weekly-panel, .focus-panel { padding: 16px; } .level-panel { grid-column: auto; } .level-main { margin-top: 15px; } .week-bars { margin-top: 16px; gap: 7px; } .bar-track { height: 59px; }
+      .focus-quote { font-size: 12px; } .side-foot { grid-column: auto; } .toast { bottom: max(14px, env(safe-area-inset-bottom)); width: calc(100vw - 24px); padding: 11px 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-icon" aria-hidden="true">&lt;/&gt;</div>
+        <div><div class="brand-name">QUESTBOARD <span style="color:var(--lime)">.</span></div><div class="brand-sub">personal operating system</div></div>
+      </div>
+      <div class="topbar-right">
+        <span class="system-status"><span class="live-dot"></span> local system online</span>
+        <button class="top-btn" id="exportBtn" type="button" title="Download a backup of your tasks and XP"><span aria-hidden="true">↧</span><span class="btn-text">Export backup</span></button>
+        <button class="top-btn" id="importBtn" type="button" title="Restore a Questboard JSON backup"><span aria-hidden="true">↥</span><span class="btn-text">Import</span></button>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <button class="icon-btn" id="helpBtn" type="button" aria-label="Help" title="How Questboard works">?</button>
+      </div>
+    </header>
+
+    <div class="storage-warning" id="storageWarning">Your browser isn't allowing local saves in this tab. You can still use Questboard during this session, but export a backup before closing it.</div>
+
+    <main class="workspace">
+      <section class="main-column" aria-label="Daily workspace">
+        <section class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">// daily operations · <span id="todayLabel">today</span></div>
+            <h1>Build your day.<br><span>Ship your quests.</span></h1>
+            <p>One focused task at a time. Stack small wins, build your streak, and earn your next level. Consistency beats a perfect plan.</p>
+            <div class="hero-bottom"><span class="hero-chip"><b>01</b> focus</span><span class="hero-chip"><b>02</b> execute</span><span class="hero-chip"><b>03</b> recover</span></div>
+          </div>
+          <div class="hero-orb" id="progressOrb" style="--progress:0%" role="img" aria-label="0 percent of active quests complete"><div class="orb-inner"><strong class="orb-percent" id="progressPercent">0%</strong><span class="orb-caption">today's progress</span></div></div>
+        </section>
+
+        <section class="stats-grid" aria-label="Your stats">
+          <article class="stat-card"><div class="stat-top"><span>Quests cleared</span><span class="stat-symbol">[✓]</span></div><div class="stat-value" id="doneStat">0/0</div><div class="stat-foot">TODAY'S CHECKLIST</div></article>
+          <article class="stat-card"><div class="stat-top"><span>Current streak</span><span class="stat-symbol">[↗]</span></div><div class="stat-value" id="streakStat">0 days</div><div class="stat-foot">70%+ COMPLETION DAYS</div></article>
+          <article class="stat-card"><div class="stat-top"><span>XP gained today</span><span class="stat-symbol">[+]</span></div><div class="stat-value" id="todayXpStat">0</div><div class="stat-foot">REWARDS EARNED</div></article>
+        </section>
+
+        <section class="panel quest-panel" aria-label="Quest queue">
+          <div class="panel-head">
+            <div><h2 class="panel-title">Quest queue</h2><p class="panel-sub">Define the work. Check it off. Claim your XP.</p></div>
+            <span class="subtle-pill" id="queueStatus">SYSTEM READY</span>
+          </div>
+          <div class="quest-body">
+            <form class="add-form" id="addForm">
+              <input class="task-input" id="taskInput" maxlength="100" autocomplete="off" placeholder="Add a quest… e.g. finish physics revision" aria-label="New quest" required>
+              <button class="add-btn" type="submit">+ Add quest</button>
+            </form>
+            <div class="form-row"><select class="type-select" id="taskType" aria-label="Quest frequency"><option value="daily">↻ Daily quest · 10 XP each day</option><option value="once">◇ One-time quest · 20 XP once</option></select><span class="form-hint">Press / to quick-add · Enter to save</span></div>
+          </div>
+          <div class="filters" role="tablist" aria-label="Filter quests"><button class="filter-btn active" data-filter="all" type="button" role="tab" aria-selected="true">All quests</button><button class="filter-btn" data-filter="open" type="button" role="tab" aria-selected="false">To do</button><button class="filter-btn" data-filter="done" type="button" role="tab" aria-selected="false">Completed</button><span class="quest-count" id="questCount">0 active</span></div>
+          <div class="task-list" id="taskList" aria-live="polite"></div>
+          <div class="quest-footer"><span class="footer-caption" id="listFootnote">Daily quests reset each new day.</span><button class="text-btn" id="resetBtn" type="button">Reset daily checks</button></div>
+        </section>
+      </section>
+
+      <aside class="sidebar" aria-label="Progress and stats">
+        <section class="panel level-panel" id="levelPanel">
+          <div class="side-heading"><h2>Operator profile</h2><span class="side-kicker">XP SYSTEM v1.0</span></div>
+          <div class="level-main"><div class="level-number" id="levelBadge">01</div><div><div class="level-name" id="levelLabel">Level 1 · Starter</div><div class="level-xp-line"><span id="totalXp">0</span> total XP earned</div></div></div>
+          <div class="xp-track" aria-label="Progress toward next level"><div class="xp-fill" id="xpFill"></div></div>
+          <div class="level-bottom"><span id="levelProgressText">0 / 100 XP to next level</span><span id="levelPercent">0%</span></div>
+        </section>
+
+        <section class="panel weekly-panel">
+          <div class="side-heading"><div><h2>Activity log</h2><div class="panel-sub">Last 7 days · completion rate</div></div><span class="side-kicker">WEEK 01</span></div>
+          <div class="week-bars" id="weekBars" aria-label="Weekly completion chart"></div>
+        </section>
+
+        <section class="panel focus-panel">
+          <div class="side-heading"><h2>Developer mindset</h2><span class="side-kicker">NOTE_001</span></div>
+          <p class="focus-quote" id="focusQuote">Your job isn't to do everything. It's to <strong>do the next useful thing</strong>.</p>
+          <div class="shortcuts"><kbd>/</kbd><span class="micro-label">focus quick-add</span><kbd>ENTER</kbd><span class="micro-label">save quest</span></div>
+        </section>
+        <div class="side-foot">NO CLOUD REQUIRED FOR THE HTML VERSION<br>YOUR DATA STAYS IN THIS BROWSER</div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><div class="toast-icon" id="toastIcon">✓</div><div><strong class="toast-title" id="toastTitle">Quest complete</strong><span class="toast-message" id="toastMessage">+10 XP earned</span></div></div>
+  <div class="modal-backdrop" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal"><div class="eyebrow">// quick documentation</div><h2 id="helpTitle">How Questboard works</h2><p>Questboard runs in your browser. The standalone HTML version doesn't need an internet connection, and your data is stored locally in that browser.</p><ul><li><strong>Daily quests:</strong> +10 XP the first time you complete them each day. Their checkboxes reset at midnight.</li><li><strong>One-time quests:</strong> +20 XP once. Completed one-time quests stay completed until removed.</li><li><strong>Levels:</strong> every 100 XP earns a new level.</li><li><strong>Streaks:</strong> a day counts when you complete at least 70% of your active quests.</li><li><strong>Backups:</strong> use Export backup before moving devices or clearing browser data. Import restores a downloaded backup.</li></ul><p>XP is for motivation, not a measure of your worth. A smaller, realistic quest list is usually better than a perfect-looking list you can't sustain.</p><div class="modal-actions"><button class="top-btn" id="closeHelp" type="button">Got it</button></div></div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+    const STORAGE_KEY = 'questboard-dark-v2';
+    const $ = id => document.getElementById(id);
+    const todayISO = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    const prettyDate = (date = new Date()) => date.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}).toUpperCase();
+    const starterTasks = () => [
+      {id:1, text:'Finish one focused study block', type:'daily', completed:false, xpAwarded:false, xpDate:null, createdAt:Date.now()},
+      {id:2, text:'Gym session or intentional movement', type:'daily', completed:false, xpAwarded:false, xpDate:null, createdAt:Date.now()},
+      {id:3, text:'Spend intentional time with family', type:'daily', completed:false, xpAwarded:false, xpDate:null, createdAt:Date.now()},
+      {id:4, text:'Start winding down on time', type:'daily', completed:false, xpAwarded:false, xpDate:null, createdAt:Date.now()}
+    ];
+    let filter = 'all';
+    let toastTimer = null;
+    let storageAvailable = true;
+    let data = loadData();
+
+    function emptyData() { return {tasks:starterTasks(), xp:0, xpToday:0, xpTodayDate:todayISO(), history:{}, lastDay:todayISO(), nextId:5, schema:2}; }
+    function loadData() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return emptyData();
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.tasks)) return emptyData();
+        parsed.xp = Number.isFinite(parsed.xp) ? Math.max(0, parsed.xp) : 0;
+        parsed.xpToday = Number.isFinite(parsed.xpToday) ? Math.max(0, parsed.xpToday) : 0;
+        parsed.history = parsed.history && typeof parsed.history === 'object' ? parsed.history : {};
+        parsed.lastDay = parsed.lastDay || todayISO();
+        parsed.xpTodayDate = parsed.xpTodayDate || todayISO();
+        parsed.nextId = Number.isFinite(parsed.nextId) ? parsed.nextId : (Math.max(0,...parsed.tasks.map(t=>Number(t.id)||0))+1);
+        parsed.tasks = parsed.tasks.map(t => ({...t, completed:Boolean(t.completed), xpAwarded:Boolean(t.xpAwarded), type:t.type === 'once' ? 'once' : 'daily', text:String(t.text || 'Untitled quest')}));
+        return parsed;
+      } catch (err) {
+        storageAvailable = false;
+        return emptyData();
+      }
+    }
+    function saveData() {
+      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); storageAvailable = true; }
+      catch (err) { storageAvailable = false; }
+      $('storageWarning').classList.toggle('show', !storageAvailable);
+    }
+    function activeTasks(day = todayISO()) { return data.tasks.filter(t => t.type === 'daily' || !t.completed || t.completedAt === day); }
+    function pctFor(tasks) { return tasks.length ? Math.round(tasks.filter(t=>t.completed).length / tasks.length * 100) : 0; }
+    function percentage() { return pctFor(activeTasks()); }
+    function completedCount() { return activeTasks().filter(t=>t.completed).length; }
+    function levelInfo() { return {level:Math.floor(data.xp/100)+1, within:data.xp%100, remaining:100-(data.xp%100)}; }
+
+    function recordDay(date) {
+      const tasks = activeTasks(date);
+      data.history[date] = {pct:pctFor(tasks), done:tasks.filter(t=>t.completed).length, total:tasks.length};
+      const dates = Object.keys(data.history).sort();
+      while (dates.length > 35) delete data.history[dates.shift()];
+    }
+    function rolloverIfNeeded() {
+      const today = todayISO();
+      if (!data.lastDay) data.lastDay = today;
+      if (data.lastDay !== today) {
+        recordDay(data.lastDay);
+        data.tasks.forEach(task => { if (task.type === 'daily') task.completed = false; });
+        data.xpToday = 0;
+        data.xpTodayDate = today;
+        data.lastDay = today;
+        saveData();
+      }
+      if (data.xpTodayDate !== today) { data.xpToday = 0; data.xpTodayDate = today; saveData(); }
+    }
+    function streakCount() {
+      const today = todayISO();
+      const todayPct = percentage();
+      let count = 0;
+      const cursor = new Date();
+      if (todayPct >= 70) { count = 1; cursor.setDate(cursor.getDate()-1); }
+      // If today isn't complete enough yet, preserve the streak from yesterday until today's done.
+      else cursor.setDate(cursor.getDate()-1);
+      for (let i=0; i<35; i++) {
+        const date = todayISO(cursor);
+        const rec = data.history[date];
+        if (!rec || rec.pct < 70) break;
+        count++;
+        cursor.setDate(cursor.getDate()-1);
+      }
+      return count;
+    }
+    function safeText(s) { return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+    function showToast(title, message, icon='✓') {
+      $('toastTitle').textContent = title;
+      $('toastMessage').textContent = message;
+      $('toastIcon').textContent = icon;
+      const toast = $('toast'); toast.classList.add('show');
+      clearTimeout(toastTimer); toastTimer = setTimeout(()=>toast.classList.remove('show'), 2500);
+    }
+    function popXPAt(r, points) {
+      if (!r || !points) return;
+      const el = document.createElement('div'); el.className = 'xp-float'; el.textContent = `+${points} XP`;
+      el.style.left = `${Math.min(window.innerWidth-90, Math.max(8, r.right-22))}px`;
+      el.style.top = `${Math.max(12, r.top+4)}px`;
+      document.body.appendChild(el); setTimeout(()=>el.remove(), 1100);
+    }
+    function burst(x, y) {
+      const colors = ['var(--lime)','var(--cyan)','var(--amber)'];
+      for (let i=0; i<12; i++) {
+        const p = document.createElement('span'); p.className = 'confetti';
+        p.style.setProperty('--x', `${x}px`); p.style.setProperty('--y', `${y}px`);
+        p.style.setProperty('--dx', `${Math.round((Math.random()-.5)*110)}px`);
+        p.style.setProperty('--dy', `${Math.round(-25-Math.random()*95)}px`);
+        p.style.setProperty('--c', colors[i%colors.length]);
+        p.style.animationDelay = `${Math.random()*.08}s`;
+        document.body.appendChild(p); setTimeout(()=>p.remove(), 1000);
+      }
+    }
+    function renderTasks() {
+      const list = $('taskList');
+      const tasks = data.tasks.filter(t => filter==='all' || (filter==='open' && !t.completed) || (filter==='done' && t.completed));
+      $('questCount').textContent = `${activeTasks().length} active`;
+      if (!tasks.length) {
+        let title = 'No quests here yet'; let detail = 'Add one small task and get the first win on the board.'; let glyph = '{ }';
+        if (filter==='done') { title = 'No completed quests yet'; detail = 'Your first check-off is waiting. Keep it small and achievable.'; glyph = '✓'; }
+        if (filter==='open') { title = 'Queue cleared'; detail = 'You have no open quests in this view. Enjoy the breathing room or add another.'; glyph = '∅'; }
+        list.innerHTML = `<div class="empty-state"><div class="empty-glyph">${glyph}</div><strong>${title}</strong><p>${detail}</p></div>`;
+        return;
+      }
+      list.innerHTML = tasks.map(task => {
+        const xpLabel = task.type==='daily' ? '+10 XP / day' : '+20 XP';
+        const earned = task.type==='daily' ? task.xpDate===todayISO() : Boolean(task.xpAwarded);
+        return `<article class="task ${task.completed?'done':''}" data-id="${safeText(task.id)}">
+          <input class="check-box" type="checkbox" aria-label="Mark ${safeText(task.text)} complete" ${task.completed?'checked':''} data-action="toggle" data-id="${safeText(task.id)}">
+          <div class="task-main"><div class="task-title">${safeText(task.text)}</div><div class="task-meta"><span class="tag ${task.type}">${task.type==='daily'?'↻ Daily':'◇ One-time'}</span>${task.completed?'<span class="tag">Cleared</span>':''}</div></div>
+          <div class="task-side"><span class="xp-tag ${earned?'earned':''}">${earned?'✓ XP earned':xpLabel}</span><button class="remove-btn" type="button" data-action="delete" data-id="${safeText(task.id)}" aria-label="Remove ${safeText(task.text)}">REMOVE</button></div>
+        </article>`;
+      }).join('');
+    }
+    function renderWeek() {
+      const container = $('weekBars'); const days = []; const now = new Date();
+      for (let offset=6; offset>=0; offset--) {
+        const d = new Date(now); d.setDate(now.getDate()-offset);
+        const iso = todayISO(d); const today = offset===0; const rec = today ? {pct:percentage()} : data.history[iso];
+        days.push({label:d.toLocaleDateString(undefined,{weekday:'short'}).slice(0,2),pct:rec?rec.pct:0,hasData:Boolean(rec),today});
+      }
+      container.innerHTML = days.map(d=>`<div class="day-col ${d.today?'today':''} ${d.hasData?'has-data':''}" title="${d.hasData?d.pct+'% complete':'No saved data'}"><span class="day-val">${d.hasData?d.pct+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="height:${d.hasData?Math.max(d.pct,4):3}%"></div></div><span class="day-name">${d.label}</span></div>`).join('');
+    }
+    function setFilterButtons() {
+      document.querySelectorAll('.filter-btn').forEach(btn=>{const active=btn.dataset.filter===filter;btn.classList.toggle('active',active);btn.setAttribute('aria-selected',String(active));});
+    }
+    function updateFocusQuote(pct) {
+      const el = $('focusQuote');
+      if (!activeTasks().length) el.innerHTML = 'Your job is to <strong>pick one useful next step</strong>. Make it small enough to start.';
+      else if (pct===100) el.innerHTML = 'Queue cleared. Protect your recovery and <strong>enjoy the win</strong> — your next task can wait.';
+      else if (pct>=70) el.innerHTML = 'You are in the final stretch. <strong>Finish strong, not frantic</strong>. One more quest at a time.';
+      else if (pct>=30) el.innerHTML = 'Momentum is built in small repetitions. <strong>Return to the next useful thing</strong>.';
+      else el.innerHTML = 'Your job isn\'t to do everything. It\'s to <strong>do the next useful thing</strong>.';
+    }
+    function render() {
+      rolloverIfNeeded();
+      const pct = percentage(), total = activeTasks().length, done = completedCount(), level = levelInfo();
+      $('todayLabel').textContent = prettyDate();
+      $('progressPercent').textContent = `${pct}%`;
+      $('progressOrb').style.setProperty('--progress', `${pct}%`);
+      $('progressOrb').setAttribute('aria-label', `${pct} percent of active quests complete`);
+      $('doneStat').textContent = `${done}/${total}`;
+      $('streakStat').textContent = `${streakCount()} ${streakCount()===1?'day':'days'}`;
+      $('todayXpStat').textContent = String(data.xpToday||0);
+      $('levelBadge').textContent = String(level.level).padStart(2,'0');
+      const titles = ['Starter','Building momentum','Consistent operator','Quest champion','Unstoppable'];
+      $('levelLabel').textContent = `Level ${level.level} · ${titles[Math.min(Math.floor((level.level-1)/3),titles.length-1)]}`;
+      $('totalXp').textContent = String(data.xp);
+      $('levelProgressText').textContent = `${level.within} / 100 XP to next level`;
+      $('levelPercent').textContent = `${level.within}%`;
+      $('xpFill').style.width = `${level.within}%`;
+      $('queueStatus').textContent = total===0?'AWAITING INPUT':pct===100?'QUEUE CLEARED':'SYSTEM READY';
+      $('resetBtn').disabled = !data.tasks.some(t=>t.type==='daily' && t.completed);
+      $('listFootnote').textContent = total===0?'Add a quest to initialise your daily queue.':'Daily quests reset at midnight · XP stays earned.';
+      updateFocusQuote(pct); renderTasks(); renderWeek(); saveData();
+    }
+    function addTask(text, type) {
+      const trimmed = text.trim(); if (!trimmed) return;
+      data.tasks.push({id:data.nextId||Date.now(), text:trimmed, type, completed:false, completedAt:null, xpAwarded:false, xpDate:null, createdAt:Date.now()});
+      data.nextId = (data.nextId||1)+1;
+      $('taskInput').value=''; filter='all'; setFilterButtons(); render(); $('taskInput').focus();
+      showToast('Quest added', 'Small steps. Clear the next one.', '+');
+    }
+    function toggleTask(id, completed, card) {
+      const task = data.tasks.find(t=>String(t.id)===String(id)); if (!task) return;
+      const beforePct = percentage(); const oldLevel = levelInfo().level;
+      const checkRect = completed && card ? card.querySelector('.check-box')?.getBoundingClientRect() : null;
+      const xpRect = completed && card ? card.querySelector('.task-side')?.getBoundingClientRect() : null;
+      let points = 0;
+      if (completed) {
+        const canEarn = task.type==='daily' ? task.xpDate!==todayISO() : !task.xpAwarded;
+        if (canEarn) {
+          points = task.type==='daily' ? 10 : 20;
+          data.xp += points; data.xpToday = (data.xpToday||0)+points;
+          if (task.type==='daily') task.xpDate=todayISO(); else task.xpAwarded=true;
+        }
+      }
+      task.completed = completed;
+      if (task.type === 'once') task.completedAt = completed ? todayISO() : null;
+      const afterPct = percentage(); const newLevel = levelInfo().level;
+      render();
+      if (completed) {
+        if (checkRect) burst(checkRect.left+checkRect.width/2, checkRect.top+checkRect.height/2);
+        popXPAt(xpRect, points);
+        const orb = $('progressOrb'); orb.classList.remove('pulse'); void orb.offsetWidth; orb.classList.add('pulse');
+        if (points && navigator.vibrate) { try { navigator.vibrate(18); } catch (_) {} }
+        if (newLevel>oldLevel) {
+          $('levelPanel').classList.remove('level-up'); void $('levelPanel').offsetWidth; $('levelPanel').classList.add('level-up');
+          showToast('LEVEL UP!', `You reached level ${newLevel}. Keep building.`, '↑');
+        } else if (beforePct<70 && afterPct>=70) showToast('Milestone unlocked', `You're ${afterPct}% complete. ${points?`+${points} XP earned.`:'XP for this quest was already earned.'}`, '★');
+        else if (afterPct===100 && beforePct<100) showToast('QUEUE CLEARED', `All active quests complete. ${points?`+${points} XP earned.`:'Nice work.'}`, '✓');
+        else if (points) showToast('Quest cleared', `+${points} XP earned. You showed up.`, '✓');
+        else showToast('Quest checked off', 'You already earned XP for this quest. Progress still counts.', '✓');
+      } else {
+        showToast('Quest reopened', 'No XP removed. Pick it up when you are ready.', '↺');
+      }
+    }
+    $('addForm').addEventListener('submit', e=>{e.preventDefault();addTask($('taskInput').value,$('taskType').value);});
+    document.querySelectorAll('.filter-btn').forEach(btn=>btn.addEventListener('click',()=>{filter=btn.dataset.filter;setFilterButtons();renderTasks();}));
+    $('taskList').addEventListener('change', e=>{
+      const box=e.target.closest('[data-action="toggle"]'); if(!box)return;
+      const id=box.dataset.id, checked=box.checked, card=box.closest('.task');
+      if(checked){
+        box.disabled=true; card.classList.add('completing');
+        window.setTimeout(()=>{toggleTask(id,true,card);},220);
+      } else toggleTask(id,false,card);
+    });
+    $('taskList').addEventListener('click', e=>{
+      const btn=e.target.closest('[data-action="delete"]'); if(!btn)return;
+      const task=data.tasks.find(t=>String(t.id)===String(btn.dataset.id)); if(!task)return;
+      if(!window.confirm(`Remove “${task.text}” from your quest queue? Any XP already earned will stay yours.`))return;
+      data.tasks=data.tasks.filter(t=>String(t.id)!==String(btn.dataset.id)); render(); showToast('Quest removed','Your earned XP is safe.','−');
+    });
+    $('resetBtn').addEventListener('click',()=>{
+      if(!data.tasks.some(t=>t.type==='daily'&&t.completed))return;
+      if(!window.confirm('Reset completed daily quests for today? XP stays earned, and one-time quests are not changed.'))return;
+      data.tasks.forEach(t=>{if(t.type==='daily')t.completed=false;}); render(); showToast('Daily checks reset','Your XP stays earned.','↺');
+    });
+    $('exportBtn').addEventListener('click',()=>{
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download=`questboard-backup-${todayISO()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showToast('Backup exported','Keep the JSON file somewhere safe.','↓');
+    });
+    $('importBtn').addEventListener('click',()=>$('importFile').click());
+    $('importFile').addEventListener('change',async e=>{
+      const file=e.target.files&&e.target.files[0]; if(!file)return;
+      try {
+        const parsed=JSON.parse(await file.text());
+        if(!parsed||!Array.isArray(parsed.tasks)||!Number.isFinite(Number(parsed.xp)))throw new Error('That file is not a Questboard backup.');
+        if(!window.confirm('Import this backup? It will replace the quests and XP currently saved in this browser.')){e.target.value='';return;}
+        data={...emptyData(),...parsed};
+        data.tasks=data.tasks.map((t,i)=>({id:t.id??i+1,text:String(t.text||'Untitled quest').slice(0,100),type:t.type==='once'?'once':'daily',completed:Boolean(t.completed),completedAt:t.completedAt||null,xpAwarded:Boolean(t.xpAwarded),xpDate:t.xpDate||null,createdAt:t.createdAt||Date.now()}));
+        data.xp=Math.max(0,Number(data.xp)||0); data.xpToday=Math.max(0,Number(data.xpToday)||0); data.history=data.history&&typeof data.history==='object'?data.history:{}; data.nextId=Math.max(Number(data.nextId)||1,...data.tasks.map(t=>(Number(t.id)||0)+1));
+        render(); showToast('Backup restored','Your quests and XP have been imported.','↑');
+      } catch(err) { window.alert(err.message||'Could not read that backup file.'); }
+      e.target.value='';
+    });
+    const modal=$('helpModal');
+    $('helpBtn').addEventListener('click',()=>modal.classList.add('open'));
+    $('closeHelp').addEventListener('click',()=>modal.classList.remove('open'));
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape')modal.classList.remove('open');
+      if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)&&!modal.classList.contains('open')){e.preventDefault();$('taskInput').focus();}
+    });
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){rolloverIfNeeded();render();}});
+    window.addEventListener('focus',()=>{rolloverIfNeeded();render();});
+    // A hosted/PWA copy can register its service worker. The standalone file runs directly without one.
+    if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline cache not enabled:',err)));
+    }
+    render();
+    if(!storageAvailable) $('storageWarning').classList.add('show');
+  })();
+  </script>
+</body>
+</html>
